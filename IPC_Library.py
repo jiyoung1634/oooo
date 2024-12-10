@@ -23,13 +23,6 @@ FREQUENCIES = {
     8: 523.25   # C5
 }
 
-# IPC 관련 정의
-IPC_SYNC = 0xFF
-IPC_START1 = 0x55
-IPC_START2 = 0xAA
-IPC_MAX_PACKET_SIZE = 0x400
-received_pucData = []  # IPC에서 수신한 데이터 저장
-
 # GPIO 유틸리티 함수
 def is_gpio_exported(gpio_number):
     gpio_base_path = GPIO_BASE_PATH_TEMPLATE.format(gpio_number)
@@ -84,34 +77,17 @@ def ipc_listener(gpio_pin):
                 print(f"Received unknown note: {note}")
             time.sleep(0.1)  # IPC 데이터 처리 후 잠시 대기
 
-# IPC 패킷 처리 함수
-def IPC_CalcCrc16(data, size, init):
-    crc = init
-    for i in range(size):
-        crc ^= (data[i] << 8)
-        for _ in range(8):
-            if (crc & 0x8000):
-                crc = (crc << 1) ^ 0x1021
-            else:
-                crc = crc << 1
-            crc &= 0xFFFF
-    return crc
-
 # IPC 수신 스레드
-
 def IPC_ReceivePacketFromIPCHeader(file_path):
     global received_pucData
     try:
-        # CAN 버스 초기화 (SocketCAN 인터페이스를 사용할 경우)
-        bus = can.interface.Bus(channel='can0', bustype='socketcan')  # 'can0'은 시스템의 CAN 인터페이스 이름
+        bus = can.interface.Bus(channel='can0', bustype='socketcan')
         print("Listening for CAN messages...")
-        
+
         while True:
-            message = bus.recv()  # 메시지 수신
+            message = bus.recv()
             if message is not None:
                 print(f"Received CAN message: ID={hex(message.arbitration_id)}, Data={message.data.hex()}")
-                
-                # 받은 데이터를 처리 (첫 번째 바이트를 음계로 사용)
                 if len(message.data) > 0:
                     received_pucData = [message.data[0]]
     except Exception as e:
