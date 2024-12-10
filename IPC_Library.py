@@ -3,6 +3,7 @@ import os
 import time
 import threading
 import array
+import can
 
 # GPIO 관련 경로 및 음계 주파수 정의
 GPIO_EXPORT_PATH = "/sys/class/gpio/export"
@@ -97,16 +98,28 @@ def IPC_CalcCrc16(data, size, init):
     return crc
 
 # IPC 수신 스레드
+
 def IPC_ReceivePacketFromIPCHeader(file_path):
     global received_pucData
-    while True:
-        # 여기에 파일 디스크립터 읽기 로직 추가
-        # 임의 데이터 예제
-        received_pucData = [1]  # C 노트 (261.63 Hz) 테스트용
+    try:
+        # CAN 버스 초기화 (SocketCAN 인터페이스를 사용할 경우)
+        bus = can.interface.Bus(channel='can0', bustype='socketcan')  # 'can0'은 시스템의 CAN 인터페이스 이름
+        print("Listening for CAN messages...")
+        
+        while True:
+            message = bus.recv()  # 메시지 수신
+            if message is not None:
+                print(f"Received CAN message: ID={hex(message.arbitration_id)}, Data={message.data.hex()}")
+                
+                # 받은 데이터를 처리 (첫 번째 바이트를 음계로 사용)
+                if len(message.data) > 0:
+                    received_pucData = [message.data[0]]
+    except Exception as e:
+        print(f"Error receiving CAN data: {e}")
 
 # 메인 실행부
 if __name__ == "__main__":
-    gpio_pin = 89  # GPIO 핀 번호 설정
+    gpio_pin = 18  # GPIO 핀 번호 설정
 
     try:
         export_gpio(gpio_pin)
